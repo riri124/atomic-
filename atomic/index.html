@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATOMIC</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Montserrat',sans-serif}
+    body{background:#0b0b0b;color:#f5f5f5;overflow-x:hidden}
+    header{padding:20px 40px;display:flex;justify-content:space-between;align-items:center;background:#000;border-bottom:1px solid #222;position:sticky;top:0;z-index:10;position:relative}
+    .logo-principal{position:absolute;left:50%;transform:translateX(-50%);display:flex;justify-content:center;align-items:center;pointer-events:none}
+    .logo-principal img{max-width:420px;width:90%;height:auto}
+    @media(max-width:768px){.logo-principal img{max-width:260px}}
+    .logo-3d{width:120px;perspective:800px}
+    .logo-3d img{width:100%;animation:logoFloat 4s ease-in-out infinite}
+    @keyframes logoFloat{0%{transform:rotateX(15deg) rotateY(-15deg)}50%{transform:rotateX(20deg) rotateY(15deg)}100%{transform:rotateX(15deg) rotateY(-15deg)}}
+    nav a{margin-left:20px;color:#fff;text-decoration:none;font-weight:600}
+    .cart-icon{cursor:pointer}
+    .hero{text-align:center;padding:100px 40px;background:#000}
+    .hero h2{font-size:42px}
+    .products{padding:80px 40px}
+    .filters{text-align:center;margin-bottom:40px}
+    .filter-btn{margin:0 8px;padding:8px 20px;border:1px solid #ff2e2e;background:none;color:#fff;cursor:pointer}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:40px}
+    .card{background:#111;padding:20px;border:1px solid #222}
+    .card img{width:100%;height:280px;object-fit:contain;background:#000;margin-bottom:10px}
+    .card select,.card button{width:100%;margin-top:8px;padding:8px}
+    .card button{background:#ff2e2e;border:none;font-weight:700}
+    #cart{display:none;position:fixed;top:80px;right:20px;width:320px;background:#111;border:1px solid #222;padding:20px;z-index:30}
+    footer{text-align:center;padding:30px;background:#000;color:#777;margin-top:60px}
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo-3d"><img src="logo-atomic.png"></div>
+  <div class="logo-principal"><img src="logo-principal.png" alt="ATOMIC Logo"></div>
+  <nav>
+    <a href="#">Início</a>
+    <a href="#produtos">Produtos</a>
+    <span class="cart-icon" onclick="toggleCart()">🛒 <span id="cart-count">0</span></span>
+  </nav>
+</header>
+
+<section class="hero">
+  <h2>Coleção ELÉTRONS</h2>
+</section>
+
+<section class="products" id="produtos">
+  <div class="filters">
+    <button class="filter-btn" onclick="filterProducts('all')">Todos</button>
+    <button class="filter-btn" onclick="filterProducts('camisa')">Camisas</button>
+    <button class="filter-btn" onclick="filterProducts('camisola')">Camisolas</button>
+    <button class="filter-btn" onclick="filterProducts('chapeu')">Chapéus</button>
+  </div>
+  <div class="grid" id="product-grid"></div>
+</section>
+
+<div id="cart">
+  <h3>Carrinho</h3>
+  <div id="cart-items"></div>
+  <p id="cart-total">Total: 0 MT</p>
+  <input id="client-name" placeholder="Seu nome" style="width:100%;margin:5px 0">
+  <input id="client-location" placeholder="Cidade / Bairro" style="width:100%;margin:5px 0">
+  <select id="payment-method" style="width:100%;margin:5px 0">
+    <option>M-Pesa</option><option>e-Mola</option><option>mKesh</option><option>Pagamento na entrega</option>
+  </select>
+  <button onclick="finishOrder()" style="width:100%;padding:10px;background:#ff2e2e;border:none;font-weight:700">Finalizar no WhatsApp</button>
+</div>
+
+<section id="admin-panel" style="display:none;padding:60px 40px;background:#000;color:#fff;">
+  <h3>Painel Admin</h3>
+
+  <h4>Adicionar novo produto</h4>
+  <input id="p-name" placeholder="Nome do produto" style="display:block;margin:10px 0;padding:10px;width:100%">
+  <input id="p-price" placeholder="Preço (MT)" type="number" style="display:block;margin:10px 0;padding:10px;width:100%">
+  <input id="p-img" placeholder="Imagem (ex: camisa1.jpeg)" style="display:block;margin:10px 0;padding:10px;width:100%">
+  <select id="p-cat" style="display:block;margin:10px 0;padding:10px;width:100%">
+    <option value="camisa">Camisa</option>
+    <option value="camisola">Camisola</option>
+    <option value="chapeu">Chapéu</option>
+  </select>
+  <button onclick="addProduct()" style="padding:15px 30px;background:#ff2e2e;border:none;font-weight:700">Adicionar produto</button>
+
+  <h4 style="margin-top:30px">Produtos cadastrados</h4>
+  <div id="admin-products"></div>
+
+  <h4 style="margin-top:30px">Pedidos recebidos</h4>
+  <div id="admin-orders"></div>
+
+  <button onclick="logoutAdmin()" style="margin-top:30px;padding:10px 20px">Sair</button>
+</section>
+
+<footer>© 2026 ATOMIC</footer>
+
+<script>
+const ADMIN_PASSWORD = '1102riad';
+let products = JSON.parse(localStorage.getItem('products')) || [];
+localStorage.setItem('products', JSON.stringify(products));
+
+let cart=[]; let total=0;
+
+function toggleCart(){const c=document.getElementById('cart'); c.style.display=c.style.display==='block'?'none':'block';}
+
+function addToCart(name,price,selectEl){
+  const isHat = name.toLowerCase().includes('chapéu');
+  const size = selectEl && !isHat ? selectEl.value : '';
+  if(selectEl && !isHat && !size){alert('Escolha um tamanho'); return;}
+  cart.push({name,price,size});
+  total+=price;
+  document.getElementById('cart-count').innerText=cart.length;
+  renderCart();
+}
+
+function renderCart(){
+  const div=document.getElementById('cart-items'); div.innerHTML='';
+  cart.forEach(i=>{div.innerHTML+=`<p>${i.name} ${i.size? '('+i.size+')':''} - ${i.price} MT</p>`});
+  document.getElementById('cart-total').innerText=`Total: ${total} MT`;
+}
+
+function finishOrder(){
+  const n=document.getElementById('client-name').value;
+  const l=document.getElementById('client-location').value;
+  const p=document.getElementById('payment-method').value;
+  if(!n||!l){alert('Preencha nome e localização');return;}
+
+  const order={name:n,location:l,payment:p,items:cart,total:total,date:new Date().toLocaleString()};
+  const orders=JSON.parse(localStorage.getItem('orders'))||[];
+  orders.push(order);
+  localStorage.setItem('orders',JSON.stringify(orders));
+
+  let m=`Olá, quero fazer um pedido na ATOMIC%0A%0ANome: ${n}%0ACidade/Bairro: ${l}%0A%0APedido:%0A`;
+  cart.forEach(i=>{m+=`- ${i.name} ${i.size? '('+i.size+')':''} - ${i.price} MT%0A`;});
+  m+=`%0ATotal: ${total} MT%0AMétodo de pagamento: ${p}`;
+  window.open(`https://wa.me/258870773527?text=${m}`,'_blank');
+
+  cart=[]; total=0;
+  document.getElementById('cart-count').innerText=0;
+  renderCart();
+}
+
+function filterProducts(category){
+  document.querySelectorAll('.card').forEach(c=>{c.style.display=(category==='all'||c.dataset.category===category)?'block':'none'});
+}
+
+function renderProducts(){
+  const grid=document.getElementById('product-grid');
+  grid.innerHTML='';
+  products.forEach(p=>{
+    const div=document.createElement('div');
+    div.className='card';
+    div.dataset.category=p.cat;
+    div.innerHTML=`<img src="${p.img}"><h4>${p.name}</h4><p>${p.price} MT</p>
+      ${p.cat!=='chapeu'?`<select class='size-select'><option value=''>Escolha o tamanho</option><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select>`:''}
+      <button onclick="addToCart('${p.name}',${p.price},this.previousElementSibling)">Adicionar ao carrinho</button>`;
+    grid.appendChild(div);
+  });
+}
+
+function checkAdminAccess(){
+  if(window.location.hash==='admin' || window.location.hash==='#admin'){
+    const senha = prompt('Digite a senha do administrador:');
+    if(senha===ADMIN_PASSWORD){
+      document.getElementById('admin-panel').style.display='block';
+      renderAdminProducts();
+      renderAdminOrders();
+    } else {
+      alert('Senha incorreta');
+      window.location.hash='';
+    }
+  } else {
+      document.getElementById('admin-panel').style.display='none';
+  }
+}
+
+function logoutAdmin(){
+  document.getElementById('admin-panel').style.display='none';
+  window.location.hash='';
+}
+
+function renderAdminProducts(){
+  const container=document.getElementById('admin-products');
+  container.innerHTML='';
+  products.forEach((p,index)=>{
+    const div=document.createElement('div');
+    div.style.border='1px solid #333';
+    div.style.padding='10px';
+    div.style.marginBottom='10px';
+    div.innerHTML=`${p.name} - ${p.price} MT (${p.cat})<br><button onclick='removeProduct(${index})'>Remover</button>`;
+    container.appendChild(div);
+  });
+}
+
+function addProduct(){
+  const name=document.getElementById('p-name').value;
+  const price=document.getElementById('p-price').value;
+  const img=document.getElementById('p-img').value;
+  const cat=document.getElementById('p-cat').value;
+  if(!name||!price||!img){alert('Preencha todos os campos'); return;}
+  products.push({name,price,img,cat});
+  localStorage.setItem('products',JSON.stringify(products));
+  renderProducts();
+  renderAdminProducts();
+  document.getElementById('p-name').value='';
+  document.getElementById('p-price').value='';
+  document.getElementById('p-img').value='';
+}
+
+function removeProduct(index){
+  products.splice(index,1);
+  localStorage.setItem('products',JSON.stringify(products));
+  renderProducts();
+  renderAdminProducts();
+}
+
+function renderAdminOrders(){
+  const container=document.getElementById('admin-orders');
+  container.innerHTML='';
+  const orders=JSON.parse(localStorage.getItem('orders'))||[];
+  if(orders.length===0){container.innerHTML='<p>Nenhum pedido ainda.</p>'; return;}
+  orders.forEach((o,i)=>{
+    const div=document.createElement('div');
+    div.style.border='1px solid #333';
+    div.style.padding='10px';
+    div.style.marginBottom='10px';
+    let items='';
+    o.items.forEach(it=>{items+=`<li>${it.name} ${it.size? '('+it.size+')':''} - ${it.price} MT</li>`});
+    div.innerHTML=`<strong>Pedido #${i+1}</strong><br>Cliente: ${o.name}<br>Local: ${o.location}<br>Pagamento: ${o.payment}<br>Data: ${o.date}<br><ul>${items}</ul><strong>Total:</strong> ${o.total} MT`;
+    container.appendChild(div);
+  });
+}
+
+window.onload=()=>{
+  renderProducts();
+  checkAdminAccess();
+};
+window.addEventListener('hashchange',checkAdminAccess);
+</script>
+</body>
+</html>
